@@ -1,0 +1,83 @@
+name: Docker release image
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Release version, for example 0.1.4
+        required: true
+        default: "0.1.4"
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-upload:
+    name: Build and upload Docker image
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Prepare release variables
+        shell: bash
+        run: |
+          version="${{ inputs.version }}"
+          version="${version#v}"
+          echo "VERSION=${version}" >> "${GITHUB_ENV}"
+          echo "TAG=v${version}" >> "${GITHUB_ENV}"
+          echo "ASSET_BASE=chdbits-hnr-monitor_${version}_linux-amd64" >> "${GITHUB_ENV}"
+
+      - name: Build linux/amd64 Docker image
+        run: |
+          docker build \
+            --platform linux/amd64 \
+            --build-arg PYTHON_IMAGE=public.ecr.aws/docker/library/python:3.12-slim \
+            -t "chdbits-hnr-monitor:${VERSION}" \
+            .
+
+      - name: Export Docker image
+        run: |
+          mkdir -p dist
+          docker save -o "dist/${ASSET_BASE}.tar" "chdbits-hnr-monitor:${VERSION}"
+          sha256sum "dist/${ASSET_BASE}.tar" > "dist/${ASSET_BASE}.tar.sha256"
+
+      - name: Create or update draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          notes="Docker 镜像导入命令：
+
+\`\`\`bash
+docker load -i ${ASSET_BASE}.tar
+\`\`\`
+
+本版本已将示例用户 ID 统一改为 1，并移除了以秒为单位的检测周期配置。"
+
+          if gh release view "${TAG}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            gh release edit "${TAG}" \
+              --repo "${GITHUB_REPOSITORY}" \
+              --title "${TAG}" \
+              --notes "${notes}"
+          else
+            gh release create "${TAG}" \
+              --repo "${GITHUB_REPOSITORY}" \
+              --target "${GITHUB_SHA}" \
+              --draft \
+              --title "${TAG}" \
+              --notes "${notes}"
+          fi
+
+      - name: Upload release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload "${TAG}" dist/* --repo "${GITHUB_REPOSITORY}" --clobber
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release edit "${TAG}" --repo "${GITHUB_REPOSITORY}" --draft=false --latest
+          gh release view "${TAG}" --repo "${GITHUB_REPOSITORY}" --json isDraft,assets,url

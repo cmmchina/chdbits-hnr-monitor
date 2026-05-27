@@ -47,7 +47,7 @@ class ParserTest(unittest.TestCase):
               <td></td>
               <td><a href="details.php?id=123&hit=1">Private title</a></td>
               <td>14.76%</td>
-              <td>19天05:15:50</td>
+              <td>18天05:15:50</td>
               <td>5天</td>
               <td>17:43:02</td>
               <td>1:43:16</td>
