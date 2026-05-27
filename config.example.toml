@@ -1,0 +1,70 @@
+# Copy this file to config.toml and fill in your own values.
+# Do not commit config.toml.
+
+[site]
+base_url = "https://ptchdbits.co"
+hnr_path = "/hnr.php"
+user_id = 1
+cookie_env = "CHDBITS_COOKIE"
+cookie = ""
+user_agent = "Mozilla/5.0 (compatible; chdbits-hnr-monitor/0.1)"
+timeout_seconds = 30
+
+[monitor]
+state_path = "/data/hnr-monitor.sqlite3"
+check_interval_minutes = 30
+stalled_after_hours = 24
+notify_repeat_hours = 12
+timezone = "Asia/Shanghai"
+
+[parser]
+# The monitor compares this column between checks. If it does not change for
+# stalled_after_hours, an alert is sent.
+progress_columns = [
+  "完成时间",
+  "H&R完成时间",
+  "H&R 完成时间",
+  "H&R百分比",
+  "做种时间",
+  "已完成",
+  "已做种",
+  "剩余时间"
+]
+name_columns = ["种子", "种子名称", "标题", "名称", "Torrent", "Name"]
+status_columns = ["状态", "H&R状态", "Status"]
+
+# Leave these as -1 to auto-detect by table header. If the CHDBits table has
+# unusual headers, set zero-based indexes here after checking parse-fixture.
+name_column_index = -1
+progress_column_index = -1
+status_column_index = -1
+
+# Used to find a stable torrent key from links in each row.
+torrent_id_patterns = [
+  "details\\.php\\?id=(\\d+)",
+  "details\\.php\\?id=(\\d+)&hit=1",
+  "download\\.php\\?id=(\\d+)",
+  "id=(\\d+)"
+]
+
+login_failed_markers = ["登录", "login", "password", "密码"]
+
+[notifications.console]
+enabled = true
+
+[notifications.email]
+enabled = false
+smtp_host = "smtp.example.com"
+smtp_port = 465
+use_ssl = true
+starttls = false
+username = "your-email@example.com"
+password_env = "SMTP_PASSWORD"
+password = ""
+from = "your-email@example.com"
+to = ["receiver@example.com"]
+
+[notifications.webhook]
+enabled = false
+url_env = "HNR_WEBHOOK_URL"
+url = ""

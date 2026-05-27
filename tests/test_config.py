@@ -1,0 +1,54 @@
+from pathlib import Path
+import os
+import tempfile
+import unittest
+
+from hnr_monitor.config import load_config
+
+
+class ConfigTest(unittest.TestCase):
+    def test_loads_from_environment_without_config_file(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            missing_config = Path(tmp_dir) / "missing.toml"
+            old_values = {
+                key: os.environ.get(key)
+                for key in [
+                    "HNR_USER_ID",
+                    "CHDBITS_COOKIE",
+                    "HNR_EMAIL_ENABLED",
+                    "HNR_SMTP_HOST",
+                    "HNR_EMAIL_FROM",
+                    "HNR_EMAIL_TO",
+                ]
+            }
+            try:
+                os.environ["HNR_USER_ID"] = "19"
+                os.environ["CHDBITS_COOKIE"] = "uid=test"
+                os.environ["HNR_EMAIL_ENABLED"] = "true"
+                os.environ["HNR_CHECK_INTERVAL_MINUTES"] = "10"
+                os.environ["HNR_SMTP_HOST"] = "smtp.example.com"
+                os.environ["HNR_EMAIL_FROM"] = "from@example.com"
+                os.environ["HNR_EMAIL_TO"] = "to-a@example.com,to-b@example.com"
+
+                config = load_config(missing_config)
+
+                self.assertEqual(config.site.user_id, 19)
+                self.assertEqual(config.site.cookie_value, "uid=test")
+                self.assertEqual(config.monitor.check_interval_minutes, 10)
+                self.assertEqual(config.monitor.interval_seconds, 600)
+                self.assertTrue(config.notifications.email.enabled)
+                self.assertEqual(config.notifications.email.smtp_host, "smtp.example.com")
+                self.assertEqual(
+                    config.notifications.email.to,
+                    ["to-a@example.com", "to-b@example.com"],
+                )
+            finally:
+                for key, value in old_values.items():
+                    if value is None:
+                        os.environ.pop(key, None)
+                    else:
+                        os.environ[key] = value
+
+
+if __name__ == "__main__":
+    unittest.main()

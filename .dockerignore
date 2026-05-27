@@ -1,0 +1,14 @@
+.git
+.DS_Store
+.venv
+__pycache__
+*.pyc
+*.pyo
+*.egg-info
+
+config.toml
+.env
+data
+fixtures/private
+fixtures/CHDBits*
+fixtures/*_files/
