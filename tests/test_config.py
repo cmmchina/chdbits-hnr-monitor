@@ -16,13 +16,14 @@ class ConfigTest(unittest.TestCase):
                     "HNR_USER_ID",
                     "CHDBITS_COOKIE",
                     "HNR_EMAIL_ENABLED",
+                    "HNR_CHECK_INTERVAL_MINUTES",
                     "HNR_SMTP_HOST",
                     "HNR_EMAIL_FROM",
                     "HNR_EMAIL_TO",
                 ]
             }
             try:
-                os.environ["HNR_USER_ID"] = "19"
+                os.environ["HNR_USER_ID"] = "1"
                 os.environ["CHDBITS_COOKIE"] = "uid=test"
                 os.environ["HNR_EMAIL_ENABLED"] = "true"
                 os.environ["HNR_CHECK_INTERVAL_MINUTES"] = "10"
@@ -32,7 +33,7 @@ class ConfigTest(unittest.TestCase):
 
                 config = load_config(missing_config)
 
-                self.assertEqual(config.site.user_id, 19)
+                self.assertEqual(config.site.user_id, 1)
                 self.assertEqual(config.site.cookie_value, "uid=test")
                 self.assertEqual(config.monitor.check_interval_minutes, 10)
                 self.assertEqual(config.monitor.interval_seconds, 600)
