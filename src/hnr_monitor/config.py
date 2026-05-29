@@ -24,7 +24,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "user_id": 0,
         "cookie_env": "CHDBITS_COOKIE",
         "cookie": "",
-        "user_agent": "Mozilla/5.0 (compatible; chdbits-hnr-monitor/0.1)",
+        "user_agent": "Mozilla/5.0 (compatible; chdbits-hnr-monitor/0.1.5)",
         "timeout_seconds": 30,
     },
     "monitor": {
@@ -77,6 +77,16 @@ DEFAULT_CONFIG: dict[str, Any] = {
             "url_env": "HNR_WEBHOOK_URL",
             "url": "",
         },
+        "wechat": {
+            "enabled": False,
+            "provider": "wecom_robot",
+            "webhook_url_env": "HNR_WECHAT_WEBHOOK_URL",
+            "webhook_url": "",
+            "msgtype": "text",
+            "mention_mobiles": [],
+            "mention_user_ids": [],
+            "at_all": False,
+        },
     },
 }
 
@@ -88,7 +98,7 @@ class SiteConfig:
     user_id: int
     cookie_env: str = "CHDBITS_COOKIE"
     cookie: str = ""
-    user_agent: str = "Mozilla/5.0 (compatible; chdbits-hnr-monitor/0.1)"
+    user_agent: str = "Mozilla/5.0 (compatible; chdbits-hnr-monitor/0.1.5)"
     timeout_seconds: int = 30
 
     @property
@@ -170,10 +180,27 @@ class WebhookConfig:
 
 
 @dataclass(frozen=True)
+class WechatConfig:
+    enabled: bool = False
+    provider: str = "wecom_robot"
+    webhook_url_env: str = "HNR_WECHAT_WEBHOOK_URL"
+    webhook_url: str = ""
+    msgtype: str = "text"
+    mention_mobiles: list[str] = field(default_factory=list)
+    mention_user_ids: list[str] = field(default_factory=list)
+    at_all: bool = False
+
+    @property
+    def webhook_url_value(self) -> str:
+        return os.getenv(self.webhook_url_env, self.webhook_url).strip()
+
+
+@dataclass(frozen=True)
 class NotificationConfig:
     console: ConsoleConfig
     email: EmailConfig
     webhook: WebhookConfig
+    wechat: WechatConfig
 
 
 @dataclass(frozen=True)
@@ -201,6 +228,7 @@ def load_config(path: str | Path) -> AppConfig:
     parser_raw = raw.get("parser", {})
     notifications_raw = raw.get("notifications", {})
     email_raw = notifications_raw.get("email", {})
+    wechat_raw = notifications_raw.get("wechat", {})
 
     site = SiteConfig(
         base_url=str(site_raw["base_url"]),
@@ -248,6 +276,16 @@ def load_config(path: str | Path) -> AppConfig:
             enabled=bool(notifications_raw.get("webhook", {}).get("enabled", False)),
             url_env=str(notifications_raw.get("webhook", {}).get("url_env", "HNR_WEBHOOK_URL")),
             url=str(notifications_raw.get("webhook", {}).get("url", "")),
+        ),
+        wechat=WechatConfig(
+            enabled=bool(wechat_raw.get("enabled", False)),
+            provider=str(wechat_raw.get("provider", "wecom_robot")),
+            webhook_url_env=str(wechat_raw.get("webhook_url_env", "HNR_WECHAT_WEBHOOK_URL")),
+            webhook_url=str(wechat_raw.get("webhook_url", "")),
+            msgtype=str(wechat_raw.get("msgtype", "text")),
+            mention_mobiles=_string_list(wechat_raw.get("mention_mobiles", [])),
+            mention_user_ids=_string_list(wechat_raw.get("mention_user_ids", [])),
+            at_all=bool(wechat_raw.get("at_all", False)),
         ),
     )
 
@@ -302,6 +340,15 @@ def _apply_env_overrides(raw: dict[str, Any]) -> None:
     _set_env(raw, ("notifications", "webhook", "enabled"), "HNR_WEBHOOK_ENABLED", _env_bool)
     _set_env(raw, ("notifications", "webhook", "url"), "HNR_WEBHOOK_URL")
     _set_env(raw, ("notifications", "webhook", "url_env"), "HNR_WEBHOOK_URL_ENV")
+
+    _set_env(raw, ("notifications", "wechat", "enabled"), "HNR_WECHAT_ENABLED", _env_bool)
+    _set_env(raw, ("notifications", "wechat", "provider"), "HNR_WECHAT_PROVIDER")
+    _set_env(raw, ("notifications", "wechat", "webhook_url"), "HNR_WECHAT_WEBHOOK_URL")
+    _set_env(raw, ("notifications", "wechat", "webhook_url_env"), "HNR_WECHAT_WEBHOOK_URL_ENV")
+    _set_env(raw, ("notifications", "wechat", "msgtype"), "HNR_WECHAT_MSGTYPE")
+    _set_env(raw, ("notifications", "wechat", "mention_mobiles"), "HNR_WECHAT_MENTION_MOBILES", _env_list)
+    _set_env(raw, ("notifications", "wechat", "mention_user_ids"), "HNR_WECHAT_MENTION_USER_IDS", _env_list)
+    _set_env(raw, ("notifications", "wechat", "at_all"), "HNR_WECHAT_AT_ALL", _env_bool)
 
 
 def _set_env(
@@ -375,3 +422,10 @@ def _validate(
             raise ConfigError("notifications.email.to is required when email is enabled")
     if notifications.webhook.enabled and not notifications.webhook.url_value:
         raise ConfigError("Webhook is enabled but URL is empty")
+    if notifications.wechat.enabled:
+        if notifications.wechat.provider != "wecom_robot":
+            raise ConfigError("notifications.wechat.provider only supports wecom_robot")
+        if notifications.wechat.msgtype not in {"text", "markdown"}:
+            raise ConfigError("notifications.wechat.msgtype must be text or markdown")
+        if not notifications.wechat.webhook_url_value:
+            raise ConfigError("Wechat notification is enabled but webhook URL is empty")

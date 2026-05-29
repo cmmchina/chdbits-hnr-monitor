@@ -1,8 +1,24 @@
 from datetime import datetime, timezone
+from unittest.mock import patch
+import json
 import unittest
 
+from hnr_monitor.config import ConsoleConfig, EmailConfig, NotificationConfig, WebhookConfig, WechatConfig
 from hnr_monitor.models import Alert
-from hnr_monitor.notify import _render_message
+from hnr_monitor.notify import _render_message, send_alerts
+
+
+class FakeResponse:
+    status = 200
+
+    def __enter__(self) -> "FakeResponse":
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback) -> None:
+        return None
+
+    def read(self) -> bytes:
+        return b'{"errcode":0,"errmsg":"ok"}'
 
 
 class NotifyTest(unittest.TestCase):
@@ -38,6 +54,50 @@ class NotifyTest(unittest.TestCase):
         self.assertIn("当前完成时间: 0:44:17", message)
         self.assertIn("标题: Title B", message)
         self.assertIn("当前完成时间: 2:10:05", message)
+
+    def test_wechat_robot_payload_contains_titles_and_mentions(self) -> None:
+        now = datetime(2026, 5, 26, 8, 0, tzinfo=timezone.utc)
+        alerts = [
+            Alert(
+                key="123",
+                name="Title A",
+                detail_url="https://ptchdbits.co/details.php?id=123",
+                progress_value="0:44:17",
+                stalled_since=now,
+                stalled_hours=24.5,
+                last_seen_at=now,
+                status="",
+            )
+        ]
+        config = NotificationConfig(
+            console=ConsoleConfig(enabled=False),
+            email=EmailConfig(enabled=False),
+            webhook=WebhookConfig(enabled=False),
+            wechat=WechatConfig(
+                enabled=True,
+                webhook_url="https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=test",
+                msgtype="text",
+                mention_mobiles=["13800138000"],
+            ),
+        )
+        captured = []
+
+        def fake_urlopen(request, timeout):
+            captured.append((request, timeout))
+            return FakeResponse()
+
+        with patch("hnr_monitor.notify.urlopen", fake_urlopen):
+            send_alerts(config, alerts, now, "Asia/Shanghai")
+
+        self.assertEqual(len(captured), 1)
+        request, timeout = captured[0]
+        self.assertEqual(timeout, 30)
+        self.assertEqual(request.full_url, "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=test")
+        payload = json.loads(request.data.decode("utf-8"))
+        self.assertEqual(payload["msgtype"], "text")
+        self.assertIn("标题: Title A", payload["text"]["content"])
+        self.assertIn("当前完成时间: 0:44:17", payload["text"]["content"])
+        self.assertEqual(payload["text"]["mentioned_mobile_list"], ["13800138000"])
 
 
 if __name__ == "__main__":

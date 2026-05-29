@@ -1,7 +1,7 @@
 services:
   hnr-monitor:
     build: .
-    image: chdbits-hnr-monitor:0.1.4
+    image: chdbits-hnr-monitor:0.1.5
     container_name: chdbits-hnr-monitor
     restart: unless-stopped
     environment:
@@ -9,6 +9,7 @@ services:
       CHDBITS_COOKIE: ${CHDBITS_COOKIE:?set CHDBITS_COOKIE}
       SMTP_PASSWORD: ${SMTP_PASSWORD:-}
       HNR_WEBHOOK_URL: ${HNR_WEBHOOK_URL:-}
+      HNR_WECHAT_WEBHOOK_URL: ${HNR_WECHAT_WEBHOOK_URL:-}
     volumes:
       - ./config.toml:/config/config.toml:ro
       - ./data:/data

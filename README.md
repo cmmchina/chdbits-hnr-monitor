@@ -1,7 +1,7 @@
 # CHDBits H&R Monitor
 本项目由Codex 自动化编写完成。
 
-一个 Docker 友好的 H&R 进度监控器。它会定期读取 PT 站 H&R 页面，记录每个种子的进度字段。如果某个种子的进度字段在指定时间内没有变化，例如 24 小时，就通过控制台、邮件或 Webhook 发送提醒。
+一个 Docker 友好的 H&R 进度监控器。它会定期读取 PT 站 H&R 页面，记录每个种子的进度字段。如果某个种子的进度字段在指定时间内没有变化，例如 24 小时，就通过控制台、邮件、Webhook 或微信发送提醒。
 
 项目默认不保存任何个人信息到仓库。Docker/NAS 推荐用环境变量配置；本机调试也可以使用 `config.toml`。
 
@@ -12,7 +12,7 @@
 - 使用 SQLite 保存历史状态
 - 支持停滞阈值和重复提醒间隔
 - 提醒中包含每条异常记录的 `标题` 和当前 `完成时间`
-- 支持控制台、SMTP 邮件、通用 Webhook
+- 支持控制台、SMTP 邮件、通用 Webhook、企业微信群机器人微信提醒
 - 支持 Docker / Docker Compose
 - 支持本地 HTML 样例解析，方便在不暴露 Cookie 的情况下校准页面结构
 
@@ -30,6 +30,7 @@ mkdir -p data
 - `HNR_USER_ID` 改成你的用户 ID
 - `CHDBITS_COOKIE` 填你的站点 Cookie
 - 需要邮件提醒时，把 `HNR_EMAIL_ENABLED` 改成 `true`，并填写 SMTP 配置
+- 需要微信提醒时，把 `HNR_WECHAT_ENABLED` 改成 `true`，并填写企业微信群机器人 Webhook
 
 导入镜像包后启动：
 
@@ -76,10 +77,48 @@ Docker/NAS 可以只靠环境变量运行，常用项如下：
 - `HNR_EMAIL_TO`: 收件人，多个邮箱用英文逗号分隔
 - `HNR_WEBHOOK_ENABLED`: 是否启用 Webhook
 - `HNR_WEBHOOK_URL`: Webhook 地址
+- `HNR_WECHAT_ENABLED`: 是否启用微信提醒，当前支持企业微信群机器人
+- `HNR_WECHAT_PROVIDER`: 微信提醒提供方，当前固定为 `wecom_robot`
+- `HNR_WECHAT_WEBHOOK_URL`: 企业微信群机器人 Webhook 地址
+- `HNR_WECHAT_MSGTYPE`: 企业微信消息类型，`text` 或 `markdown`，默认 `text`
+- `HNR_WECHAT_MENTION_MOBILES`: 可选，需要 @ 的手机号，多个用英文逗号分隔
+- `HNR_WECHAT_MENTION_USER_IDS`: 可选，需要 @ 的企业微信用户 ID，多个用英文逗号分隔，仅 `text` 使用
+- `HNR_WECHAT_AT_ALL`: 可选，是否 @所有人，`true` 或 `false`
 
 高级解析配置仍然可以放在 `config.toml` 里；如果不挂载配置文件，程序会使用内置默认解析规则，默认监控 `完成时间` 列。
 
 镜像内已经预置了上述环境变量名称。导入镜像后在 NAS 界面新建容器时，通常能在环境变量列表里看到这些 `HNR_...` 项；只需要改值即可。Docker 镜像标准本身没有“环境变量说明文字”字段，所以说明同时写在镜像 `LABEL`、`.env.example` 和本文档里。
+
+## 微信提醒对接
+
+当前内置的是企业微信群机器人方式。它是官方支持的 Webhook 推送，适合把提醒发到一个只有你自己的企业微信群，或者发到家庭/运维提醒群。个人微信本身没有稳定公开的官方机器人接口，不建议用扫码挂机或非官方逆向方案。
+
+对接步骤：
+
+1. 在企业微信里创建或进入一个群聊。
+2. 在群设置里添加“群机器人”，创建机器人后复制 Webhook 地址。官方说明见 [企业微信群机器人文档](https://developer.work.weixin.qq.com/document/path/91770)。
+3. 在 NAS / Docker 环境变量里设置：
+
+```env
+HNR_WECHAT_ENABLED=true
+HNR_WECHAT_PROVIDER=wecom_robot
+HNR_WECHAT_WEBHOOK_URL=https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=你的机器人key
+HNR_WECHAT_MSGTYPE=text
+```
+
+可选 @ 自己：
+
+```env
+HNR_WECHAT_MENTION_MOBILES=你的手机号
+```
+
+保存后重建或重启容器，再测试通知：
+
+```bash
+docker exec -it chdbits-hnr-monitor hnr-monitor test-notify
+```
+
+如果你在微信里收到了“测试 H&R 种子”的提醒，就说明微信通道已经接通。真实异常提醒会和邮件一样，包含每条异常记录的 `标题`、当前 `完成时间`、未变化时长和链接。
 
 ## 本机测试
 

@@ -1,6 +1,6 @@
 services:
   hnr-monitor:
-    image: chdbits-hnr-monitor:0.1.4
+    image: chdbits-hnr-monitor:0.1.5
     container_name: chdbits-hnr-monitor
     restart: unless-stopped
     environment:
@@ -30,5 +30,14 @@ services:
       # Optional webhook notification
       HNR_WEBHOOK_ENABLED: ${HNR_WEBHOOK_ENABLED:-false}
       HNR_WEBHOOK_URL: ${HNR_WEBHOOK_URL:-}
+
+      # WeChat notification via WeCom group robot
+      HNR_WECHAT_ENABLED: ${HNR_WECHAT_ENABLED:-false}
+      HNR_WECHAT_PROVIDER: ${HNR_WECHAT_PROVIDER:-wecom_robot}
+      HNR_WECHAT_WEBHOOK_URL: ${HNR_WECHAT_WEBHOOK_URL:-}
+      HNR_WECHAT_MSGTYPE: ${HNR_WECHAT_MSGTYPE:-text}
+      HNR_WECHAT_MENTION_MOBILES: ${HNR_WECHAT_MENTION_MOBILES:-}
+      HNR_WECHAT_MENTION_USER_IDS: ${HNR_WECHAT_MENTION_USER_IDS:-}
+      HNR_WECHAT_AT_ALL: ${HNR_WECHAT_AT_ALL:-false}
     volumes:
       - ./data:/data

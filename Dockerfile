@@ -24,10 +24,17 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     HNR_EMAIL_FROM= \
     HNR_EMAIL_TO= \
     HNR_WEBHOOK_ENABLED=false \
-    HNR_WEBHOOK_URL=
+    HNR_WEBHOOK_URL= \
+    HNR_WECHAT_ENABLED=false \
+    HNR_WECHAT_PROVIDER=wecom_robot \
+    HNR_WECHAT_WEBHOOK_URL= \
+    HNR_WECHAT_MSGTYPE=text \
+    HNR_WECHAT_MENTION_MOBILES= \
+    HNR_WECHAT_MENTION_USER_IDS= \
+    HNR_WECHAT_AT_ALL=false
 
 LABEL org.opencontainers.image.title="CHDBits H&R Monitor" \
-      org.opencontainers.image.description="监控 CHDBits H&R 页面的完成时间列，停滞后通过控制台、邮件或 Webhook 提醒。" \
+      org.opencontainers.image.description="监控 CHDBits H&R 页面的完成时间列，停滞后通过控制台、邮件、Webhook 或微信提醒。" \
       hnr.env.HNR_BASE_URL="站点基础地址。默认 https://ptchdbits.co，一般不需要修改。" \
       hnr.env.HNR_PATH="H&R 页面路径。默认 /hnr.php，一般不需要修改。" \
       hnr.env.HNR_USER_ID="必填。PT 站用户 ID，例如 1。" \
@@ -49,7 +56,14 @@ LABEL org.opencontainers.image.title="CHDBits H&R Monitor" \
       hnr.env.HNR_EMAIL_FROM="发件人邮箱。" \
       hnr.env.HNR_EMAIL_TO="收件人邮箱，多个用英文逗号分隔。" \
       hnr.env.HNR_WEBHOOK_ENABLED="是否启用 Webhook 提醒。true 或 false。" \
-      hnr.env.HNR_WEBHOOK_URL="Webhook 地址。"
+      hnr.env.HNR_WEBHOOK_URL="Webhook 地址。" \
+      hnr.env.HNR_WECHAT_ENABLED="是否启用微信提醒。true 或 false；当前支持企业微信群机器人。" \
+      hnr.env.HNR_WECHAT_PROVIDER="微信提醒提供方。当前固定为 wecom_robot，表示企业微信群机器人。" \
+      hnr.env.HNR_WECHAT_WEBHOOK_URL="企业微信群机器人 Webhook 地址，形如 https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=..." \
+      hnr.env.HNR_WECHAT_MSGTYPE="企业微信消息类型。text 或 markdown，默认 text。" \
+      hnr.env.HNR_WECHAT_MENTION_MOBILES="需要 @ 的手机号，多个用英文逗号分隔。" \
+      hnr.env.HNR_WECHAT_MENTION_USER_IDS="需要 @ 的企业微信用户 ID，多个用英文逗号分隔；仅 text 类型使用。" \
+      hnr.env.HNR_WECHAT_AT_ALL="是否 @所有人。true 或 false。"
 
 WORKDIR /app
 
