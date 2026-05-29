@@ -24,6 +24,12 @@ class ConfigTest(unittest.TestCase):
                     "HNR_WECHAT_WEBHOOK_URL",
                     "HNR_WECHAT_MSGTYPE",
                     "HNR_WECHAT_MENTION_MOBILES",
+                    "HNR_QQ_ENABLED",
+                    "HNR_QQ_ONEBOT_URL",
+                    "HNR_QQ_ONEBOT_TOKEN",
+                    "HNR_QQ_MESSAGE_TYPE",
+                    "HNR_QQ_USER_ID",
+                    "HNR_QQ_GROUP_ID",
                 ]
             }
             try:
@@ -38,6 +44,11 @@ class ConfigTest(unittest.TestCase):
                 os.environ["HNR_WECHAT_WEBHOOK_URL"] = "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=test"
                 os.environ["HNR_WECHAT_MSGTYPE"] = "text"
                 os.environ["HNR_WECHAT_MENTION_MOBILES"] = "13800138000,13900139000"
+                os.environ["HNR_QQ_ENABLED"] = "true"
+                os.environ["HNR_QQ_ONEBOT_URL"] = "http://127.0.0.1:3000"
+                os.environ["HNR_QQ_ONEBOT_TOKEN"] = "secret"
+                os.environ["HNR_QQ_MESSAGE_TYPE"] = "private"
+                os.environ["HNR_QQ_USER_ID"] = "10000"
 
                 config = load_config(missing_config)
 
@@ -57,6 +68,11 @@ class ConfigTest(unittest.TestCase):
                     config.notifications.wechat.mention_mobiles,
                     ["13800138000", "13900139000"],
                 )
+                self.assertTrue(config.notifications.qq.enabled)
+                self.assertEqual(config.notifications.qq.api_base_url_value, "http://127.0.0.1:3000")
+                self.assertEqual(config.notifications.qq.access_token_value, "secret")
+                self.assertEqual(config.notifications.qq.message_type, "private")
+                self.assertEqual(config.notifications.qq.user_id, "10000")
             finally:
                 for key, value in old_values.items():
                     if value is None:

@@ -1,6 +1,6 @@
 services:
   hnr-monitor:
-    image: chdbits-hnr-monitor:0.1.5
+    image: chdbits-hnr-monitor:0.1.6
     container_name: chdbits-hnr-monitor
     restart: unless-stopped
     environment:
@@ -39,5 +39,15 @@ services:
       HNR_WECHAT_MENTION_MOBILES: ${HNR_WECHAT_MENTION_MOBILES:-}
       HNR_WECHAT_MENTION_USER_IDS: ${HNR_WECHAT_MENTION_USER_IDS:-}
       HNR_WECHAT_AT_ALL: ${HNR_WECHAT_AT_ALL:-false}
+
+      # QQ notification via OneBot v11 HTTP API
+      HNR_QQ_ENABLED: ${HNR_QQ_ENABLED:-false}
+      HNR_QQ_PROVIDER: ${HNR_QQ_PROVIDER:-onebot_v11}
+      HNR_QQ_ONEBOT_URL: ${HNR_QQ_ONEBOT_URL:-}
+      HNR_QQ_ONEBOT_TOKEN: ${HNR_QQ_ONEBOT_TOKEN:-}
+      HNR_QQ_MESSAGE_TYPE: ${HNR_QQ_MESSAGE_TYPE:-private}
+      HNR_QQ_USER_ID: ${HNR_QQ_USER_ID:-}
+      HNR_QQ_GROUP_ID: ${HNR_QQ_GROUP_ID:-}
+      HNR_QQ_AUTO_ESCAPE: ${HNR_QQ_AUTO_ESCAPE:-true}
     volumes:
       - ./data:/data

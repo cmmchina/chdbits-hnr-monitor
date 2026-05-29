@@ -40,6 +40,11 @@ def send_alerts(config: NotificationConfig, alerts: list[Alert], now: datetime, 
             _send_wechat(config, alerts, now, timezone_name)
         except Exception as exc:
             errors.append(f"wechat: {exc}")
+    if config.qq.enabled:
+        try:
+            _send_qq(config, alerts, now, timezone_name)
+        except Exception as exc:
+            errors.append(f"qq: {exc}")
 
     if errors:
         raise NotifyError("; ".join(errors))
@@ -173,6 +178,65 @@ def _wechat_mentions(values: list[str], at_all: bool) -> list[str]:
     if at_all:
         return ["@all"]
     return [value for value in values if value]
+
+
+def _send_qq(config: NotificationConfig, alerts: list[Alert], now: datetime, timezone_name: str) -> None:
+    qq_config = config.qq
+    max_chars = 1800
+    for content in _render_message_chunks(alerts, now, timezone_name, max_chars=max_chars):
+        payload = _build_onebot_payload(config, content)
+        data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+        headers = {"Content-Type": "application/json; charset=utf-8"}
+        token = qq_config.access_token_value
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
+        request = Request(
+            _onebot_action_url(config),
+            data=data,
+            method="POST",
+            headers=headers,
+        )
+        with urlopen(request, timeout=30) as response:
+            body = response.read().decode("utf-8", errors="replace")
+            if response.status >= 400:
+                raise NotifyError(f"qq returned HTTP {response.status}: {body}")
+            try:
+                result = json.loads(body) if body else {}
+            except json.JSONDecodeError as exc:
+                raise NotifyError(f"qq returned invalid JSON: {body}") from exc
+            retcode = int(result.get("retcode", 0))
+            status = str(result.get("status", "ok"))
+            if status != "ok" or retcode != 0:
+                message = result.get("message") or result.get("wording") or body
+                raise NotifyError(f"qq returned status={status} retcode={retcode}: {message}")
+
+
+def _onebot_action_url(config: NotificationConfig) -> str:
+    qq_config = config.qq
+    if qq_config.provider != "onebot_v11":
+        raise NotifyError(f"Unsupported qq provider: {qq_config.provider}")
+    action = "send_private_msg" if qq_config.message_type == "private" else "send_group_msg"
+    return f"{qq_config.api_base_url_value.rstrip('/')}/{action}"
+
+
+def _build_onebot_payload(config: NotificationConfig, content: str) -> dict[str, object]:
+    qq_config = config.qq
+    payload: dict[str, object] = {
+        "message": content,
+        "auto_escape": qq_config.auto_escape,
+    }
+    if qq_config.message_type == "private":
+        payload["user_id"] = _onebot_id(qq_config.user_id)
+    elif qq_config.message_type == "group":
+        payload["group_id"] = _onebot_id(qq_config.group_id)
+    else:
+        raise NotifyError(f"Unsupported qq message_type: {qq_config.message_type}")
+    return payload
+
+
+def _onebot_id(value: str) -> int | str:
+    stripped = value.strip()
+    return int(stripped) if stripped.isdecimal() else stripped
 
 
 def _render_message(alerts: list[Alert], now: datetime, timezone_name: str) -> str:

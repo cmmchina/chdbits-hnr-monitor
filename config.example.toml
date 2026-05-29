@@ -7,7 +7,7 @@ hnr_path = "/hnr.php"
 user_id = 1
 cookie_env = "CHDBITS_COOKIE"
 cookie = ""
-user_agent = "Mozilla/5.0 (compatible; chdbits-hnr-monitor/0.1.5)"
+user_agent = "Mozilla/5.0 (compatible; chdbits-hnr-monitor/0.1.6)"
 timeout_seconds = 30
 
 [monitor]
@@ -78,3 +78,15 @@ msgtype = "text"
 mention_mobiles = []
 mention_user_ids = []
 at_all = false
+
+[notifications.qq]
+enabled = false
+provider = "onebot_v11"
+api_base_url_env = "HNR_QQ_ONEBOT_URL"
+api_base_url = ""
+access_token_env = "HNR_QQ_ONEBOT_TOKEN"
+access_token = ""
+message_type = "private"
+user_id = ""
+group_id = ""
+auto_escape = true

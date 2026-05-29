@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: Release version, for example 0.1.4
+        description: Release version, for example 0.1.6
         required: true
-        default: "0.1.4"
+        default: "0.1.6"
 
 permissions:
   contents: write
@@ -52,7 +52,7 @@ jobs:
             '```bash' \
             "docker load -i ${ASSET_BASE}.tar" \
             '```' \
-            '本版本已将示例用户 ID 统一改为 1，并移除了以秒为单位的检测周期配置。')"
+            '本版本包含当前 main 分支功能；详细配置请查看 README。')"
 
           if gh release view "${TAG}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
             gh release edit "${TAG}" \

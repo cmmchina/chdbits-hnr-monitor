@@ -3,13 +3,23 @@ from unittest.mock import patch
 import json
 import unittest
 
-from hnr_monitor.config import ConsoleConfig, EmailConfig, NotificationConfig, WebhookConfig, WechatConfig
+from hnr_monitor.config import (
+    ConsoleConfig,
+    EmailConfig,
+    NotificationConfig,
+    QqConfig,
+    WebhookConfig,
+    WechatConfig,
+)
 from hnr_monitor.models import Alert
 from hnr_monitor.notify import _render_message, send_alerts
 
 
 class FakeResponse:
     status = 200
+
+    def __init__(self, body: bytes = b'{"errcode":0,"errmsg":"ok"}') -> None:
+        self.body = body
 
     def __enter__(self) -> "FakeResponse":
         return self
@@ -18,7 +28,7 @@ class FakeResponse:
         return None
 
     def read(self) -> bytes:
-        return b'{"errcode":0,"errmsg":"ok"}'
+        return self.body
 
 
 class NotifyTest(unittest.TestCase):
@@ -79,6 +89,7 @@ class NotifyTest(unittest.TestCase):
                 msgtype="text",
                 mention_mobiles=["13800138000"],
             ),
+            qq=QqConfig(enabled=False),
         )
         captured = []
 
@@ -98,6 +109,53 @@ class NotifyTest(unittest.TestCase):
         self.assertIn("标题: Title A", payload["text"]["content"])
         self.assertIn("当前完成时间: 0:44:17", payload["text"]["content"])
         self.assertEqual(payload["text"]["mentioned_mobile_list"], ["13800138000"])
+
+    def test_qq_onebot_group_payload_contains_title_and_token(self) -> None:
+        now = datetime(2026, 5, 26, 8, 0, tzinfo=timezone.utc)
+        alerts = [
+            Alert(
+                key="123",
+                name="Title A",
+                detail_url="https://ptchdbits.co/details.php?id=123",
+                progress_value="0:44:17",
+                stalled_since=now,
+                stalled_hours=24.5,
+                last_seen_at=now,
+                status="",
+            )
+        ]
+        config = NotificationConfig(
+            console=ConsoleConfig(enabled=False),
+            email=EmailConfig(enabled=False),
+            webhook=WebhookConfig(enabled=False),
+            wechat=WechatConfig(enabled=False),
+            qq=QqConfig(
+                enabled=True,
+                api_base_url="http://127.0.0.1:3000",
+                access_token="secret",
+                message_type="group",
+                group_id="10000",
+            ),
+        )
+        captured = []
+
+        def fake_urlopen(request, timeout):
+            captured.append((request, timeout))
+            return FakeResponse(b'{"status":"ok","retcode":0,"data":{"message_id":1}}')
+
+        with patch("hnr_monitor.notify.urlopen", fake_urlopen):
+            send_alerts(config, alerts, now, "Asia/Shanghai")
+
+        self.assertEqual(len(captured), 1)
+        request, timeout = captured[0]
+        self.assertEqual(timeout, 30)
+        self.assertEqual(request.full_url, "http://127.0.0.1:3000/send_group_msg")
+        self.assertEqual(request.headers["Authorization"], "Bearer secret")
+        payload = json.loads(request.data.decode("utf-8"))
+        self.assertEqual(payload["group_id"], 10000)
+        self.assertTrue(payload["auto_escape"])
+        self.assertIn("标题: Title A", payload["message"])
+        self.assertIn("当前完成时间: 0:44:17", payload["message"])
 
 
 if __name__ == "__main__":

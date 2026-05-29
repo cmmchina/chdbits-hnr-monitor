@@ -31,10 +31,18 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     HNR_WECHAT_MSGTYPE=text \
     HNR_WECHAT_MENTION_MOBILES= \
     HNR_WECHAT_MENTION_USER_IDS= \
-    HNR_WECHAT_AT_ALL=false
+    HNR_WECHAT_AT_ALL=false \
+    HNR_QQ_ENABLED=false \
+    HNR_QQ_PROVIDER=onebot_v11 \
+    HNR_QQ_ONEBOT_URL= \
+    HNR_QQ_ONEBOT_TOKEN= \
+    HNR_QQ_MESSAGE_TYPE=private \
+    HNR_QQ_USER_ID= \
+    HNR_QQ_GROUP_ID= \
+    HNR_QQ_AUTO_ESCAPE=true
 
 LABEL org.opencontainers.image.title="CHDBits H&R Monitor" \
-      org.opencontainers.image.description="监控 CHDBits H&R 页面的完成时间列，停滞后通过控制台、邮件、Webhook 或微信提醒。" \
+      org.opencontainers.image.description="监控 CHDBits H&R 页面的完成时间列，停滞后通过控制台、邮件、Webhook、微信或 QQ 提醒。" \
       hnr.env.HNR_BASE_URL="站点基础地址。默认 https://ptchdbits.co，一般不需要修改。" \
       hnr.env.HNR_PATH="H&R 页面路径。默认 /hnr.php，一般不需要修改。" \
       hnr.env.HNR_USER_ID="必填。PT 站用户 ID，例如 1。" \
@@ -63,7 +71,15 @@ LABEL org.opencontainers.image.title="CHDBits H&R Monitor" \
       hnr.env.HNR_WECHAT_MSGTYPE="企业微信消息类型。text 或 markdown，默认 text。" \
       hnr.env.HNR_WECHAT_MENTION_MOBILES="需要 @ 的手机号，多个用英文逗号分隔。" \
       hnr.env.HNR_WECHAT_MENTION_USER_IDS="需要 @ 的企业微信用户 ID，多个用英文逗号分隔；仅 text 类型使用。" \
-      hnr.env.HNR_WECHAT_AT_ALL="是否 @所有人。true 或 false。"
+      hnr.env.HNR_WECHAT_AT_ALL="是否 @所有人。true 或 false。" \
+      hnr.env.HNR_QQ_ENABLED="是否启用 QQ 提醒。true 或 false；当前支持 OneBot v11 HTTP API。" \
+      hnr.env.HNR_QQ_PROVIDER="QQ 提醒提供方。当前固定为 onebot_v11。" \
+      hnr.env.HNR_QQ_ONEBOT_URL="OneBot HTTP API 基础地址，例如 http://127.0.0.1:3000。" \
+      hnr.env.HNR_QQ_ONEBOT_TOKEN="OneBot access_token；如果你的 OneBot 未设置 token 可留空。" \
+      hnr.env.HNR_QQ_MESSAGE_TYPE="QQ 消息类型。private 发私聊，group 发群消息。" \
+      hnr.env.HNR_QQ_USER_ID="接收私聊消息的 QQ 号；HNR_QQ_MESSAGE_TYPE=private 时必填。" \
+      hnr.env.HNR_QQ_GROUP_ID="接收群消息的 QQ 群号；HNR_QQ_MESSAGE_TYPE=group 时必填。" \
+      hnr.env.HNR_QQ_AUTO_ESCAPE="是否把消息作为纯文本发送。true 或 false，默认 true。"
 
 WORKDIR /app
 

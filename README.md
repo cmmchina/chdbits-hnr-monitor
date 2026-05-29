@@ -1,7 +1,7 @@
 # CHDBits H&R Monitor
 本项目由Codex 自动化编写完成。
 
-一个 Docker 友好的 H&R 进度监控器。它会定期读取 PT 站 H&R 页面，记录每个种子的进度字段。如果某个种子的进度字段在指定时间内没有变化，例如 24 小时，就通过控制台、邮件、Webhook 或微信发送提醒。
+一个 Docker 友好的 H&R 进度监控器。它会定期读取 PT 站 H&R 页面，记录每个种子的进度字段。如果某个种子的进度字段在指定时间内没有变化，例如 24 小时，就通过控制台、邮件、Webhook、微信或 QQ 发送提醒。
 
 项目默认不保存任何个人信息到仓库。Docker/NAS 推荐用环境变量配置；本机调试也可以使用 `config.toml`。
 
@@ -12,7 +12,7 @@
 - 使用 SQLite 保存历史状态
 - 支持停滞阈值和重复提醒间隔
 - 提醒中包含每条异常记录的 `标题` 和当前 `完成时间`
-- 支持控制台、SMTP 邮件、通用 Webhook、企业微信群机器人微信提醒
+- 支持控制台、SMTP 邮件、通用 Webhook、企业微信群机器人微信提醒、OneBot v11 QQ 提醒
 - 支持 Docker / Docker Compose
 - 支持本地 HTML 样例解析，方便在不暴露 Cookie 的情况下校准页面结构
 
@@ -31,6 +31,7 @@ mkdir -p data
 - `CHDBITS_COOKIE` 填你的站点 Cookie
 - 需要邮件提醒时，把 `HNR_EMAIL_ENABLED` 改成 `true`，并填写 SMTP 配置
 - 需要微信提醒时，把 `HNR_WECHAT_ENABLED` 改成 `true`，并填写企业微信群机器人 Webhook
+- 需要 QQ 提醒时，把 `HNR_QQ_ENABLED` 改成 `true`，并填写 OneBot HTTP API 地址
 
 导入镜像包后启动：
 
@@ -84,6 +85,14 @@ Docker/NAS 可以只靠环境变量运行，常用项如下：
 - `HNR_WECHAT_MENTION_MOBILES`: 可选，需要 @ 的手机号，多个用英文逗号分隔
 - `HNR_WECHAT_MENTION_USER_IDS`: 可选，需要 @ 的企业微信用户 ID，多个用英文逗号分隔，仅 `text` 使用
 - `HNR_WECHAT_AT_ALL`: 可选，是否 @所有人，`true` 或 `false`
+- `HNR_QQ_ENABLED`: 是否启用 QQ 提醒，当前支持 OneBot v11 HTTP API
+- `HNR_QQ_PROVIDER`: QQ 提醒提供方，当前固定为 `onebot_v11`
+- `HNR_QQ_ONEBOT_URL`: OneBot HTTP API 基础地址，例如 `http://127.0.0.1:3000`
+- `HNR_QQ_ONEBOT_TOKEN`: OneBot `access_token`，未设置鉴权时留空
+- `HNR_QQ_MESSAGE_TYPE`: QQ 消息类型，`private` 发私聊，`group` 发群消息
+- `HNR_QQ_USER_ID`: 私聊接收 QQ 号，`HNR_QQ_MESSAGE_TYPE=private` 时必填
+- `HNR_QQ_GROUP_ID`: 接收 QQ 群号，`HNR_QQ_MESSAGE_TYPE=group` 时必填
+- `HNR_QQ_AUTO_ESCAPE`: 是否把消息作为纯文本发送，默认 `true`
 
 高级解析配置仍然可以放在 `config.toml` 里；如果不挂载配置文件，程序会使用内置默认解析规则，默认监控 `完成时间` 列。
 
@@ -119,6 +128,36 @@ docker exec -it chdbits-hnr-monitor hnr-monitor test-notify
 ```
 
 如果你在微信里收到了“测试 H&R 种子”的提醒，就说明微信通道已经接通。真实异常提醒会和邮件一样，包含每条异常记录的 `标题`、当前 `完成时间`、未变化时长和链接。
+
+## QQ 提醒对接
+
+当前内置的是 OneBot v11 HTTP API。程序不会登录 QQ，也不会保存 QQ 密码；你需要另外运行一个兼容 OneBot v11 的 QQ 机器人实现，让本程序调用它的 HTTP API 发送消息。OneBot v11 的 HTTP 通信和 `send_private_msg`、`send_group_msg` 接口可参考 [OneBot v11 HTTP 通信文档](https://283375.github.io/onebot_v11_vitepress/communication/http.html) 和 [OneBot v11 API 文档](https://283375.github.io/onebot_v11_vitepress/api/public.html)。
+
+常见思路是在 NAS 上运行一个 OneBot 实现，并开放 HTTP 地址，例如：
+
+```env
+HNR_QQ_ENABLED=true
+HNR_QQ_PROVIDER=onebot_v11
+HNR_QQ_ONEBOT_URL=http://onebot:3000
+HNR_QQ_ONEBOT_TOKEN=
+HNR_QQ_MESSAGE_TYPE=private
+HNR_QQ_USER_ID=你的QQ号
+```
+
+如果要发到 QQ 群：
+
+```env
+HNR_QQ_MESSAGE_TYPE=group
+HNR_QQ_GROUP_ID=你的QQ群号
+```
+
+保存后重建或重启容器，再测试通知：
+
+```bash
+docker exec -it chdbits-hnr-monitor hnr-monitor test-notify
+```
+
+如果 OneBot 端启用了 `access_token`，把同一个 token 填到 `HNR_QQ_ONEBOT_TOKEN`。如果 H&R 监控容器和 OneBot 容器在同一个 Docker Compose 网络里，`HNR_QQ_ONEBOT_URL` 可以写成 `http://onebot容器名:端口`；如果 OneBot 跑在宿主机或另一台 NAS 上，就填对应内网 IP 和端口。
 
 ## 本机测试
 

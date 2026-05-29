@@ -24,7 +24,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "user_id": 0,
         "cookie_env": "CHDBITS_COOKIE",
         "cookie": "",
-        "user_agent": "Mozilla/5.0 (compatible; chdbits-hnr-monitor/0.1.5)",
+        "user_agent": "Mozilla/5.0 (compatible; chdbits-hnr-monitor/0.1.6)",
         "timeout_seconds": 30,
     },
     "monitor": {
@@ -87,6 +87,18 @@ DEFAULT_CONFIG: dict[str, Any] = {
             "mention_user_ids": [],
             "at_all": False,
         },
+        "qq": {
+            "enabled": False,
+            "provider": "onebot_v11",
+            "api_base_url_env": "HNR_QQ_ONEBOT_URL",
+            "api_base_url": "",
+            "access_token_env": "HNR_QQ_ONEBOT_TOKEN",
+            "access_token": "",
+            "message_type": "private",
+            "user_id": "",
+            "group_id": "",
+            "auto_escape": True,
+        },
     },
 }
 
@@ -98,7 +110,7 @@ class SiteConfig:
     user_id: int
     cookie_env: str = "CHDBITS_COOKIE"
     cookie: str = ""
-    user_agent: str = "Mozilla/5.0 (compatible; chdbits-hnr-monitor/0.1.5)"
+    user_agent: str = "Mozilla/5.0 (compatible; chdbits-hnr-monitor/0.1.6)"
     timeout_seconds: int = 30
 
     @property
@@ -196,11 +208,34 @@ class WechatConfig:
 
 
 @dataclass(frozen=True)
+class QqConfig:
+    enabled: bool = False
+    provider: str = "onebot_v11"
+    api_base_url_env: str = "HNR_QQ_ONEBOT_URL"
+    api_base_url: str = ""
+    access_token_env: str = "HNR_QQ_ONEBOT_TOKEN"
+    access_token: str = ""
+    message_type: str = "private"
+    user_id: str = ""
+    group_id: str = ""
+    auto_escape: bool = True
+
+    @property
+    def api_base_url_value(self) -> str:
+        return os.getenv(self.api_base_url_env, self.api_base_url).strip()
+
+    @property
+    def access_token_value(self) -> str:
+        return os.getenv(self.access_token_env, self.access_token).strip()
+
+
+@dataclass(frozen=True)
 class NotificationConfig:
     console: ConsoleConfig
     email: EmailConfig
     webhook: WebhookConfig
     wechat: WechatConfig
+    qq: QqConfig
 
 
 @dataclass(frozen=True)
@@ -229,6 +264,7 @@ def load_config(path: str | Path) -> AppConfig:
     notifications_raw = raw.get("notifications", {})
     email_raw = notifications_raw.get("email", {})
     wechat_raw = notifications_raw.get("wechat", {})
+    qq_raw = notifications_raw.get("qq", {})
 
     site = SiteConfig(
         base_url=str(site_raw["base_url"]),
@@ -286,6 +322,18 @@ def load_config(path: str | Path) -> AppConfig:
             mention_mobiles=_string_list(wechat_raw.get("mention_mobiles", [])),
             mention_user_ids=_string_list(wechat_raw.get("mention_user_ids", [])),
             at_all=bool(wechat_raw.get("at_all", False)),
+        ),
+        qq=QqConfig(
+            enabled=bool(qq_raw.get("enabled", False)),
+            provider=str(qq_raw.get("provider", "onebot_v11")),
+            api_base_url_env=str(qq_raw.get("api_base_url_env", "HNR_QQ_ONEBOT_URL")),
+            api_base_url=str(qq_raw.get("api_base_url", "")),
+            access_token_env=str(qq_raw.get("access_token_env", "HNR_QQ_ONEBOT_TOKEN")),
+            access_token=str(qq_raw.get("access_token", "")),
+            message_type=str(qq_raw.get("message_type", "private")),
+            user_id=str(qq_raw.get("user_id", "")),
+            group_id=str(qq_raw.get("group_id", "")),
+            auto_escape=bool(qq_raw.get("auto_escape", True)),
         ),
     )
 
@@ -349,6 +397,17 @@ def _apply_env_overrides(raw: dict[str, Any]) -> None:
     _set_env(raw, ("notifications", "wechat", "mention_mobiles"), "HNR_WECHAT_MENTION_MOBILES", _env_list)
     _set_env(raw, ("notifications", "wechat", "mention_user_ids"), "HNR_WECHAT_MENTION_USER_IDS", _env_list)
     _set_env(raw, ("notifications", "wechat", "at_all"), "HNR_WECHAT_AT_ALL", _env_bool)
+
+    _set_env(raw, ("notifications", "qq", "enabled"), "HNR_QQ_ENABLED", _env_bool)
+    _set_env(raw, ("notifications", "qq", "provider"), "HNR_QQ_PROVIDER")
+    _set_env(raw, ("notifications", "qq", "api_base_url"), "HNR_QQ_ONEBOT_URL")
+    _set_env(raw, ("notifications", "qq", "api_base_url_env"), "HNR_QQ_ONEBOT_URL_ENV")
+    _set_env(raw, ("notifications", "qq", "access_token"), "HNR_QQ_ONEBOT_TOKEN")
+    _set_env(raw, ("notifications", "qq", "access_token_env"), "HNR_QQ_ONEBOT_TOKEN_ENV")
+    _set_env(raw, ("notifications", "qq", "message_type"), "HNR_QQ_MESSAGE_TYPE")
+    _set_env(raw, ("notifications", "qq", "user_id"), "HNR_QQ_USER_ID")
+    _set_env(raw, ("notifications", "qq", "group_id"), "HNR_QQ_GROUP_ID")
+    _set_env(raw, ("notifications", "qq", "auto_escape"), "HNR_QQ_AUTO_ESCAPE", _env_bool)
 
 
 def _set_env(
@@ -429,3 +488,14 @@ def _validate(
             raise ConfigError("notifications.wechat.msgtype must be text or markdown")
         if not notifications.wechat.webhook_url_value:
             raise ConfigError("Wechat notification is enabled but webhook URL is empty")
+    if notifications.qq.enabled:
+        if notifications.qq.provider != "onebot_v11":
+            raise ConfigError("notifications.qq.provider only supports onebot_v11")
+        if notifications.qq.message_type not in {"private", "group"}:
+            raise ConfigError("notifications.qq.message_type must be private or group")
+        if not notifications.qq.api_base_url_value:
+            raise ConfigError("QQ notification is enabled but OneBot URL is empty")
+        if notifications.qq.message_type == "private" and not notifications.qq.user_id:
+            raise ConfigError("notifications.qq.user_id is required for private messages")
+        if notifications.qq.message_type == "group" and not notifications.qq.group_id:
+            raise ConfigError("notifications.qq.group_id is required for group messages")
