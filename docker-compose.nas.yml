@@ -1,6 +1,6 @@
 services:
   hnr-monitor:
-    image: chdbits-hnr-monitor:0.1.7
+    image: chdbits-hnr-monitor:0.1.8
     container_name: chdbits-hnr-monitor
     restart: unless-stopped
     environment:
@@ -37,6 +37,8 @@ services:
       HNR_HERMES_TOKEN: ${HNR_HERMES_TOKEN:-}
       HNR_HERMES_TOKEN_HEADER: ${HNR_HERMES_TOKEN_HEADER:-Authorization}
       HNR_HERMES_TOKEN_PREFIX: ${HNR_HERMES_TOKEN_PREFIX:-Bearer}
+      HNR_HERMES_HMAC_SECRET: ${HNR_HERMES_HMAC_SECRET:-}
+      HNR_HERMES_SIGNATURE_HEADER: ${HNR_HERMES_SIGNATURE_HEADER:-X-Hub-Signature-256}
       HNR_HERMES_AGENT_NAME: "${HNR_HERMES_AGENT_NAME:-CHDBits H&R Monitor}"
 
       # WeChat notification via WeCom group robot

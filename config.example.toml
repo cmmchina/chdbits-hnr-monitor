@@ -7,7 +7,7 @@ hnr_path = "/hnr.php"
 user_id = 1
 cookie_env = "CHDBITS_COOKIE"
 cookie = ""
-user_agent = "Mozilla/5.0 (compatible; chdbits-hnr-monitor/0.1.7)"
+user_agent = "Mozilla/5.0 (compatible; chdbits-hnr-monitor/0.1.8)"
 timeout_seconds = 30
 
 [monitor]
@@ -77,6 +77,9 @@ token_env = "HNR_HERMES_TOKEN"
 token = ""
 token_header = "Authorization"
 token_prefix = "Bearer"
+hmac_secret_env = "HNR_HERMES_HMAC_SECRET"
+hmac_secret = ""
+signature_header = "X-Hub-Signature-256"
 agent_name = "CHDBits H&R Monitor"
 
 [notifications.wechat]

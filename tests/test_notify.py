@@ -1,5 +1,7 @@
 from datetime import datetime, timezone
 from unittest.mock import patch
+import hashlib
+import hmac
 import json
 import unittest
 
@@ -184,6 +186,8 @@ class NotifyTest(unittest.TestCase):
                 token="secret",
                 token_header="X-Hermes-Token",
                 token_prefix="",
+                hmac_secret="test-hmac-secret",
+                signature_header="X-Hub-Signature-256",
                 agent_name="H&R Monitor",
             ),
             wechat=WechatConfig(enabled=False),
@@ -203,6 +207,15 @@ class NotifyTest(unittest.TestCase):
         self.assertEqual(timeout, 30)
         self.assertEqual(request.full_url, "http://127.0.0.1:8765/agent/inbox")
         self.assertEqual(request.headers["X-hermes-token"], "secret")
+        expected_signature = hmac.new(
+            b"test-hmac-secret",
+            request.data,
+            hashlib.sha256,
+        ).hexdigest()
+        self.assertEqual(
+            request.headers["X-hub-signature-256"],
+            f"sha256={expected_signature}",
+        )
         payload = json.loads(request.data.decode("utf-8"))
         self.assertEqual(payload["source"], "chdbits-hnr-monitor")
         self.assertEqual(payload["agent"], "H&R Monitor")

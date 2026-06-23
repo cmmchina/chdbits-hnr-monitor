@@ -1,7 +1,7 @@
 services:
   hnr-monitor:
     build: .
-    image: chdbits-hnr-monitor:0.1.7
+    image: chdbits-hnr-monitor:0.1.8
     container_name: chdbits-hnr-monitor
     restart: unless-stopped
     environment:
@@ -11,6 +11,7 @@ services:
       HNR_WEBHOOK_URL: ${HNR_WEBHOOK_URL:-}
       HNR_HERMES_URL: ${HNR_HERMES_URL:-}
       HNR_HERMES_TOKEN: ${HNR_HERMES_TOKEN:-}
+      HNR_HERMES_HMAC_SECRET: ${HNR_HERMES_HMAC_SECRET:-}
       HNR_WECHAT_WEBHOOK_URL: ${HNR_WECHAT_WEBHOOK_URL:-}
       HNR_QQ_ONEBOT_URL: ${HNR_QQ_ONEBOT_URL:-}
       HNR_QQ_ONEBOT_TOKEN: ${HNR_QQ_ONEBOT_TOKEN:-}

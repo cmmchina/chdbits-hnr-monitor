@@ -4,6 +4,8 @@ from datetime import datetime
 from email.message import EmailMessage
 from urllib.request import Request, urlopen
 from zoneinfo import ZoneInfo
+import hashlib
+import hmac
 import json
 import logging
 import smtplib
@@ -139,6 +141,9 @@ def _send_hermes(config: NotificationConfig, alerts: list[Alert], now: datetime,
     token = hermes_config.token_value
     if token:
         headers[hermes_config.token_header] = _token_header_value(hermes_config.token_prefix, token)
+    hmac_secret = hermes_config.hmac_secret_value
+    if hmac_secret:
+        headers[hermes_config.signature_header] = _hmac_sha256_signature(data, hmac_secret)
     request = Request(
         hermes_config.url_value,
         data=data,
@@ -194,6 +199,11 @@ def _token_header_value(prefix: str, token: str) -> str:
     if prefix.endswith((" ", "\t")):
         return f"{prefix}{token}"
     return f"{prefix} {token}"
+
+
+def _hmac_sha256_signature(data: bytes, secret: str) -> str:
+    digest = hmac.new(secret.encode("utf-8"), data, hashlib.sha256).hexdigest()
+    return f"sha256={digest}"
 
 
 def _build_wecom_robot_payload(config: NotificationConfig, content: str) -> dict[str, object]:

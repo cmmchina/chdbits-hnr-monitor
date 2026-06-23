@@ -24,6 +24,8 @@ class ConfigTest(unittest.TestCase):
                     "HNR_HERMES_URL",
                     "HNR_HERMES_TOKEN",
                     "HNR_HERMES_TOKEN_HEADER",
+                    "HNR_HERMES_HMAC_SECRET",
+                    "HNR_HERMES_SIGNATURE_HEADER",
                     "HNR_HERMES_AGENT_NAME",
                     "HNR_WECHAT_ENABLED",
                     "HNR_WECHAT_WEBHOOK_URL",
@@ -49,6 +51,8 @@ class ConfigTest(unittest.TestCase):
                 os.environ["HNR_HERMES_URL"] = "http://127.0.0.1:8765/agent/inbox"
                 os.environ["HNR_HERMES_TOKEN"] = "secret"
                 os.environ["HNR_HERMES_TOKEN_HEADER"] = "X-Hermes-Token"
+                os.environ["HNR_HERMES_HMAC_SECRET"] = "test-hmac-secret"
+                os.environ["HNR_HERMES_SIGNATURE_HEADER"] = "X-Hub-Signature-256"
                 os.environ["HNR_HERMES_AGENT_NAME"] = "H&R Monitor"
                 os.environ["HNR_WECHAT_ENABLED"] = "true"
                 os.environ["HNR_WECHAT_WEBHOOK_URL"] = "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=test"
@@ -76,6 +80,8 @@ class ConfigTest(unittest.TestCase):
                 self.assertEqual(config.notifications.hermes.url_value, "http://127.0.0.1:8765/agent/inbox")
                 self.assertEqual(config.notifications.hermes.token_value, "secret")
                 self.assertEqual(config.notifications.hermes.token_header, "X-Hermes-Token")
+                self.assertEqual(config.notifications.hermes.hmac_secret_value, "test-hmac-secret")
+                self.assertEqual(config.notifications.hermes.signature_header, "X-Hub-Signature-256")
                 self.assertEqual(config.notifications.hermes.agent_name, "H&R Monitor")
                 self.assertTrue(config.notifications.wechat.enabled)
                 self.assertEqual(config.notifications.wechat.msgtype, "text")

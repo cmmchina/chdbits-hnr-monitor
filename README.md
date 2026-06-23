@@ -84,6 +84,8 @@ Docker/NAS 可以只靠环境变量运行，常用项如下：
 - `HNR_HERMES_TOKEN`: Hermes Agent 鉴权 token，不需要鉴权时留空
 - `HNR_HERMES_TOKEN_HEADER`: token 使用的请求头名，默认 `Authorization`
 - `HNR_HERMES_TOKEN_PREFIX`: token 前缀，默认 `Bearer`；留空表示原样发送 token
+- `HNR_HERMES_HMAC_SECRET`: Hermes Webhook HMAC Secret，设置后会发送 `X-Hub-Signature-256: sha256=<签名>`
+- `HNR_HERMES_SIGNATURE_HEADER`: HMAC 签名请求头名，默认 `X-Hub-Signature-256`
 - `HNR_HERMES_AGENT_NAME`: 发送给 Hermes 的来源名称
 - `HNR_WECHAT_ENABLED`: 是否启用微信提醒，当前支持企业微信群机器人
 - `HNR_WECHAT_PROVIDER`: 微信提醒提供方，当前固定为 `wecom_robot`
@@ -107,16 +109,24 @@ Docker/NAS 可以只靠环境变量运行，常用项如下：
 
 ## Hermes Agent 对接
 
-Hermes Agent 没有在本项目里内置固定协议假设；这里按 HTTP 接收器方式发送。你需要在 Hermes Agent 侧准备一个可接收 POST JSON 的 URL，然后把 URL 和可选鉴权 token 填到 Docker 环境变量里。
+Hermes Agent 按 HTTP Webhook 方式接收消息。你需要先在 Hermes Agent 侧创建具体 webhook 路由，然后把接收 URL 和 HMAC Secret 填到 Docker 环境变量里。
 
 最小配置：
 
 ```env
 HNR_HERMES_ENABLED=true
-HNR_HERMES_URL=http://你的Hermes地址:端口/你的接收路径
+HNR_HERMES_URL=http://你的Hermes地址:8644/webhooks/你的路由名称
+HNR_HERMES_HMAC_SECRET=你的HMAC Secret
+HNR_HERMES_SIGNATURE_HEADER=X-Hub-Signature-256
 ```
 
-如果 Hermes 端需要 token：
+程序会对实际发送的 JSON body 计算 HMAC-SHA256，并添加签名请求头：
+
+```text
+X-Hub-Signature-256: sha256=<HMAC签名>
+```
+
+如果 Hermes 端还额外需要普通 token：
 
 ```env
 HNR_HERMES_TOKEN=你的token

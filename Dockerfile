@@ -30,6 +30,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     HNR_HERMES_TOKEN= \
     HNR_HERMES_TOKEN_HEADER=Authorization \
     HNR_HERMES_TOKEN_PREFIX=Bearer \
+    HNR_HERMES_HMAC_SECRET= \
+    HNR_HERMES_SIGNATURE_HEADER=X-Hub-Signature-256 \
     HNR_HERMES_AGENT_NAME="CHDBits H&R Monitor" \
     HNR_WECHAT_ENABLED=false \
     HNR_WECHAT_PROVIDER=wecom_robot \
@@ -76,6 +78,8 @@ LABEL org.opencontainers.image.title="CHDBits H&R Monitor" \
       hnr.env.HNR_HERMES_TOKEN="Hermes Agent 鉴权 token；不需要鉴权时留空。" \
       hnr.env.HNR_HERMES_TOKEN_HEADER="Hermes token 使用的请求头名。默认 Authorization。" \
       hnr.env.HNR_HERMES_TOKEN_PREFIX="Hermes token 前缀。默认 Bearer；留空表示原样发送 token。" \
+      hnr.env.HNR_HERMES_HMAC_SECRET="Hermes Webhook HMAC Secret。设置后会发送 X-Hub-Signature-256: sha256=... 签名。" \
+      hnr.env.HNR_HERMES_SIGNATURE_HEADER="Hermes HMAC 签名请求头名。默认 X-Hub-Signature-256。" \
       hnr.env.HNR_HERMES_AGENT_NAME="发送给 Hermes 的来源名称。默认 CHDBits H&R Monitor。" \
       hnr.env.HNR_WECHAT_ENABLED="是否启用微信提醒。true 或 false；当前支持企业微信群机器人。" \
       hnr.env.HNR_WECHAT_PROVIDER="微信提醒提供方。当前固定为 wecom_robot，表示企业微信群机器人。" \
