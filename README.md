@@ -1,7 +1,7 @@
 # CHDBits H&R Monitor
 本项目由Codex 自动化编写完成。
 
-一个 Docker 友好的 H&R 进度监控器。它会定期读取 PT 站 H&R 页面，记录每个种子的进度字段。如果某个种子的进度字段在指定时间内没有变化，例如 24 小时，就通过控制台、邮件、Webhook、微信或 QQ 发送提醒。
+一个 Docker 友好的 H&R 进度监控器。它会定期读取 PT 站 H&R 页面，记录每个种子的进度字段。如果某个种子的进度字段在指定时间内没有变化，例如 24 小时，就通过控制台、邮件、Webhook、Hermes Agent、微信或 QQ 发送提醒。
 
 项目默认不保存任何个人信息到仓库。Docker/NAS 推荐用环境变量配置；本机调试也可以使用 `config.toml`。
 
@@ -12,7 +12,7 @@
 - 使用 SQLite 保存历史状态
 - 支持停滞阈值和重复提醒间隔
 - 提醒中包含每条异常记录的 `标题` 和当前 `完成时间`
-- 支持控制台、SMTP 邮件、通用 Webhook、企业微信群机器人微信提醒、OneBot v11 QQ 提醒
+- 支持控制台、SMTP 邮件、通用 Webhook、Hermes Agent、企业微信群机器人微信提醒、OneBot v11 QQ 提醒
 - 支持 Docker / Docker Compose
 - 支持本地 HTML 样例解析，方便在不暴露 Cookie 的情况下校准页面结构
 
@@ -30,6 +30,7 @@ mkdir -p data
 - `HNR_USER_ID` 改成你的用户 ID
 - `CHDBITS_COOKIE` 填你的站点 Cookie
 - 需要邮件提醒时，把 `HNR_EMAIL_ENABLED` 改成 `true`，并填写 SMTP 配置
+- 需要 Hermes Agent 提醒时，把 `HNR_HERMES_ENABLED` 改成 `true`，并填写 Hermes 接收 URL
 - 需要微信提醒时，把 `HNR_WECHAT_ENABLED` 改成 `true`，并填写企业微信群机器人 Webhook
 - 需要 QQ 提醒时，把 `HNR_QQ_ENABLED` 改成 `true`，并填写 OneBot HTTP API 地址
 
@@ -78,6 +79,12 @@ Docker/NAS 可以只靠环境变量运行，常用项如下：
 - `HNR_EMAIL_TO`: 收件人，多个邮箱用英文逗号分隔
 - `HNR_WEBHOOK_ENABLED`: 是否启用 Webhook
 - `HNR_WEBHOOK_URL`: Webhook 地址
+- `HNR_HERMES_ENABLED`: 是否启用 Hermes Agent 提醒
+- `HNR_HERMES_URL`: Hermes Agent 接收异常消息的 HTTP URL
+- `HNR_HERMES_TOKEN`: Hermes Agent 鉴权 token，不需要鉴权时留空
+- `HNR_HERMES_TOKEN_HEADER`: token 使用的请求头名，默认 `Authorization`
+- `HNR_HERMES_TOKEN_PREFIX`: token 前缀，默认 `Bearer`；留空表示原样发送 token
+- `HNR_HERMES_AGENT_NAME`: 发送给 Hermes 的来源名称
 - `HNR_WECHAT_ENABLED`: 是否启用微信提醒，当前支持企业微信群机器人
 - `HNR_WECHAT_PROVIDER`: 微信提醒提供方，当前固定为 `wecom_robot`
 - `HNR_WECHAT_WEBHOOK_URL`: 企业微信群机器人 Webhook 地址
@@ -97,6 +104,54 @@ Docker/NAS 可以只靠环境变量运行，常用项如下：
 高级解析配置仍然可以放在 `config.toml` 里；如果不挂载配置文件，程序会使用内置默认解析规则，默认监控 `完成时间` 列。
 
 镜像内已经预置了上述环境变量名称。导入镜像后在 NAS 界面新建容器时，通常能在环境变量列表里看到这些 `HNR_...` 项；只需要改值即可。Docker 镜像标准本身没有“环境变量说明文字”字段，所以说明同时写在镜像 `LABEL`、`.env.example` 和本文档里。
+
+## Hermes Agent 对接
+
+Hermes Agent 没有在本项目里内置固定协议假设；这里按 HTTP 接收器方式发送。你需要在 Hermes Agent 侧准备一个可接收 POST JSON 的 URL，然后把 URL 和可选鉴权 token 填到 Docker 环境变量里。
+
+最小配置：
+
+```env
+HNR_HERMES_ENABLED=true
+HNR_HERMES_URL=http://你的Hermes地址:端口/你的接收路径
+```
+
+如果 Hermes 端需要 token：
+
+```env
+HNR_HERMES_TOKEN=你的token
+HNR_HERMES_TOKEN_HEADER=Authorization
+HNR_HERMES_TOKEN_PREFIX=Bearer
+```
+
+发送给 Hermes 的 JSON 会同时包含人类可读文本和结构化异常数据，主要字段如下：
+
+```json
+{
+  "source": "chdbits-hnr-monitor",
+  "agent": "CHDBits H&R Monitor",
+  "type": "hnr_stalled",
+  "severity": "warning",
+  "title": "H&R 监控提醒：1 个种子完成时间未变化",
+  "message": "...完整提醒文本...",
+  "alerts": [
+    {
+      "title": "种子标题",
+      "completion_time": "12:34:56",
+      "stalled_hours": 24.0,
+      "detail_url": "https://..."
+    }
+  ]
+}
+```
+
+保存后重建或重启容器，再测试通知：
+
+```bash
+docker exec -it chdbits-hnr-monitor hnr-monitor test-notify
+```
+
+如果 Hermes 接收器返回 HTTP 2xx，就会认为发送成功；如果返回 JSON 中包含 `{"ok": false}`、`{"success": false}` 或 `{"status": "error"}`，程序会记录为发送失败。
 
 ## 微信提醒对接
 

@@ -1,6 +1,6 @@
 services:
   hnr-monitor:
-    image: chdbits-hnr-monitor:0.1.6
+    image: chdbits-hnr-monitor:0.1.7
     container_name: chdbits-hnr-monitor
     restart: unless-stopped
     environment:
@@ -30,6 +30,14 @@ services:
       # Optional webhook notification
       HNR_WEBHOOK_ENABLED: ${HNR_WEBHOOK_ENABLED:-false}
       HNR_WEBHOOK_URL: ${HNR_WEBHOOK_URL:-}
+
+      # Hermes Agent notification via HTTP
+      HNR_HERMES_ENABLED: ${HNR_HERMES_ENABLED:-false}
+      HNR_HERMES_URL: ${HNR_HERMES_URL:-}
+      HNR_HERMES_TOKEN: ${HNR_HERMES_TOKEN:-}
+      HNR_HERMES_TOKEN_HEADER: ${HNR_HERMES_TOKEN_HEADER:-Authorization}
+      HNR_HERMES_TOKEN_PREFIX: ${HNR_HERMES_TOKEN_PREFIX:-Bearer}
+      HNR_HERMES_AGENT_NAME: "${HNR_HERMES_AGENT_NAME:-CHDBits H&R Monitor}"
 
       # WeChat notification via WeCom group robot
       HNR_WECHAT_ENABLED: ${HNR_WECHAT_ENABLED:-false}

@@ -20,6 +20,11 @@ class ConfigTest(unittest.TestCase):
                     "HNR_SMTP_HOST",
                     "HNR_EMAIL_FROM",
                     "HNR_EMAIL_TO",
+                    "HNR_HERMES_ENABLED",
+                    "HNR_HERMES_URL",
+                    "HNR_HERMES_TOKEN",
+                    "HNR_HERMES_TOKEN_HEADER",
+                    "HNR_HERMES_AGENT_NAME",
                     "HNR_WECHAT_ENABLED",
                     "HNR_WECHAT_WEBHOOK_URL",
                     "HNR_WECHAT_MSGTYPE",
@@ -40,6 +45,11 @@ class ConfigTest(unittest.TestCase):
                 os.environ["HNR_SMTP_HOST"] = "smtp.example.com"
                 os.environ["HNR_EMAIL_FROM"] = "from@example.com"
                 os.environ["HNR_EMAIL_TO"] = "to-a@example.com,to-b@example.com"
+                os.environ["HNR_HERMES_ENABLED"] = "true"
+                os.environ["HNR_HERMES_URL"] = "http://127.0.0.1:8765/agent/inbox"
+                os.environ["HNR_HERMES_TOKEN"] = "secret"
+                os.environ["HNR_HERMES_TOKEN_HEADER"] = "X-Hermes-Token"
+                os.environ["HNR_HERMES_AGENT_NAME"] = "H&R Monitor"
                 os.environ["HNR_WECHAT_ENABLED"] = "true"
                 os.environ["HNR_WECHAT_WEBHOOK_URL"] = "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=test"
                 os.environ["HNR_WECHAT_MSGTYPE"] = "text"
@@ -62,6 +72,11 @@ class ConfigTest(unittest.TestCase):
                     config.notifications.email.to,
                     ["to-a@example.com", "to-b@example.com"],
                 )
+                self.assertTrue(config.notifications.hermes.enabled)
+                self.assertEqual(config.notifications.hermes.url_value, "http://127.0.0.1:8765/agent/inbox")
+                self.assertEqual(config.notifications.hermes.token_value, "secret")
+                self.assertEqual(config.notifications.hermes.token_header, "X-Hermes-Token")
+                self.assertEqual(config.notifications.hermes.agent_name, "H&R Monitor")
                 self.assertTrue(config.notifications.wechat.enabled)
                 self.assertEqual(config.notifications.wechat.msgtype, "text")
                 self.assertEqual(

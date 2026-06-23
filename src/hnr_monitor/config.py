@@ -24,7 +24,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "user_id": 0,
         "cookie_env": "CHDBITS_COOKIE",
         "cookie": "",
-        "user_agent": "Mozilla/5.0 (compatible; chdbits-hnr-monitor/0.1.6)",
+        "user_agent": "Mozilla/5.0 (compatible; chdbits-hnr-monitor/0.1.7)",
         "timeout_seconds": 30,
     },
     "monitor": {
@@ -77,6 +77,16 @@ DEFAULT_CONFIG: dict[str, Any] = {
             "url_env": "HNR_WEBHOOK_URL",
             "url": "",
         },
+        "hermes": {
+            "enabled": False,
+            "url_env": "HNR_HERMES_URL",
+            "url": "",
+            "token_env": "HNR_HERMES_TOKEN",
+            "token": "",
+            "token_header": "Authorization",
+            "token_prefix": "Bearer",
+            "agent_name": "CHDBits H&R Monitor",
+        },
         "wechat": {
             "enabled": False,
             "provider": "wecom_robot",
@@ -110,7 +120,7 @@ class SiteConfig:
     user_id: int
     cookie_env: str = "CHDBITS_COOKIE"
     cookie: str = ""
-    user_agent: str = "Mozilla/5.0 (compatible; chdbits-hnr-monitor/0.1.6)"
+    user_agent: str = "Mozilla/5.0 (compatible; chdbits-hnr-monitor/0.1.7)"
     timeout_seconds: int = 30
 
     @property
@@ -192,6 +202,26 @@ class WebhookConfig:
 
 
 @dataclass(frozen=True)
+class HermesConfig:
+    enabled: bool = False
+    url_env: str = "HNR_HERMES_URL"
+    url: str = ""
+    token_env: str = "HNR_HERMES_TOKEN"
+    token: str = ""
+    token_header: str = "Authorization"
+    token_prefix: str = "Bearer"
+    agent_name: str = "CHDBits H&R Monitor"
+
+    @property
+    def url_value(self) -> str:
+        return os.getenv(self.url_env, self.url).strip()
+
+    @property
+    def token_value(self) -> str:
+        return os.getenv(self.token_env, self.token).strip()
+
+
+@dataclass(frozen=True)
 class WechatConfig:
     enabled: bool = False
     provider: str = "wecom_robot"
@@ -234,6 +264,7 @@ class NotificationConfig:
     console: ConsoleConfig
     email: EmailConfig
     webhook: WebhookConfig
+    hermes: HermesConfig
     wechat: WechatConfig
     qq: QqConfig
 
@@ -263,6 +294,7 @@ def load_config(path: str | Path) -> AppConfig:
     parser_raw = raw.get("parser", {})
     notifications_raw = raw.get("notifications", {})
     email_raw = notifications_raw.get("email", {})
+    hermes_raw = notifications_raw.get("hermes", {})
     wechat_raw = notifications_raw.get("wechat", {})
     qq_raw = notifications_raw.get("qq", {})
 
@@ -312,6 +344,16 @@ def load_config(path: str | Path) -> AppConfig:
             enabled=bool(notifications_raw.get("webhook", {}).get("enabled", False)),
             url_env=str(notifications_raw.get("webhook", {}).get("url_env", "HNR_WEBHOOK_URL")),
             url=str(notifications_raw.get("webhook", {}).get("url", "")),
+        ),
+        hermes=HermesConfig(
+            enabled=bool(hermes_raw.get("enabled", False)),
+            url_env=str(hermes_raw.get("url_env", "HNR_HERMES_URL")),
+            url=str(hermes_raw.get("url", "")),
+            token_env=str(hermes_raw.get("token_env", "HNR_HERMES_TOKEN")),
+            token=str(hermes_raw.get("token", "")),
+            token_header=str(hermes_raw.get("token_header", "Authorization")),
+            token_prefix=str(hermes_raw.get("token_prefix", "Bearer")),
+            agent_name=str(hermes_raw.get("agent_name", "CHDBits H&R Monitor")),
         ),
         wechat=WechatConfig(
             enabled=bool(wechat_raw.get("enabled", False)),
@@ -388,6 +430,15 @@ def _apply_env_overrides(raw: dict[str, Any]) -> None:
     _set_env(raw, ("notifications", "webhook", "enabled"), "HNR_WEBHOOK_ENABLED", _env_bool)
     _set_env(raw, ("notifications", "webhook", "url"), "HNR_WEBHOOK_URL")
     _set_env(raw, ("notifications", "webhook", "url_env"), "HNR_WEBHOOK_URL_ENV")
+
+    _set_env(raw, ("notifications", "hermes", "enabled"), "HNR_HERMES_ENABLED", _env_bool)
+    _set_env(raw, ("notifications", "hermes", "url"), "HNR_HERMES_URL")
+    _set_env(raw, ("notifications", "hermes", "url_env"), "HNR_HERMES_URL_ENV")
+    _set_env(raw, ("notifications", "hermes", "token"), "HNR_HERMES_TOKEN")
+    _set_env(raw, ("notifications", "hermes", "token_env"), "HNR_HERMES_TOKEN_ENV")
+    _set_env(raw, ("notifications", "hermes", "token_header"), "HNR_HERMES_TOKEN_HEADER")
+    _set_env(raw, ("notifications", "hermes", "token_prefix"), "HNR_HERMES_TOKEN_PREFIX")
+    _set_env(raw, ("notifications", "hermes", "agent_name"), "HNR_HERMES_AGENT_NAME")
 
     _set_env(raw, ("notifications", "wechat", "enabled"), "HNR_WECHAT_ENABLED", _env_bool)
     _set_env(raw, ("notifications", "wechat", "provider"), "HNR_WECHAT_PROVIDER")
@@ -481,6 +532,13 @@ def _validate(
             raise ConfigError("notifications.email.to is required when email is enabled")
     if notifications.webhook.enabled and not notifications.webhook.url_value:
         raise ConfigError("Webhook is enabled but URL is empty")
+    if notifications.hermes.enabled:
+        if not notifications.hermes.url_value:
+            raise ConfigError("Hermes notification is enabled but URL is empty")
+        if not notifications.hermes.url_value.startswith(("http://", "https://")):
+            raise ConfigError("notifications.hermes.url must start with http:// or https://")
+        if notifications.hermes.token_value and not notifications.hermes.token_header:
+            raise ConfigError("notifications.hermes.token_header is required when token is set")
     if notifications.wechat.enabled:
         if notifications.wechat.provider != "wecom_robot":
             raise ConfigError("notifications.wechat.provider only supports wecom_robot")

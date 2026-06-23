@@ -35,6 +35,11 @@ def send_alerts(config: NotificationConfig, alerts: list[Alert], now: datetime, 
             _send_webhook(config, alerts, now, timezone_name)
         except Exception as exc:
             errors.append(f"webhook: {exc}")
+    if config.hermes.enabled:
+        try:
+            _send_hermes(config, alerts, now, timezone_name)
+        except Exception as exc:
+            errors.append(f"hermes: {exc}")
     if config.wechat.enabled:
         try:
             _send_wechat(config, alerts, now, timezone_name)
@@ -98,21 +103,7 @@ def _send_webhook(config: NotificationConfig, alerts: list[Alert], now: datetime
         "sent_at": now.isoformat(),
         "timezone": timezone_name,
         "count": len(alerts),
-        "alerts": [
-            {
-                "key": alert.key,
-                "name": alert.name,
-                "title": alert.name,
-                "detail_url": alert.detail_url,
-                "progress_value": alert.progress_value,
-                "completion_time": alert.progress_value,
-                "stalled_since": alert.stalled_since.isoformat(),
-                "stalled_hours": round(alert.stalled_hours, 2),
-                "last_seen_at": alert.last_seen_at.isoformat(),
-                "status": alert.status,
-            }
-            for alert in alerts
-        ],
+        "alerts": _alert_payloads(alerts),
     }
     data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
     request = Request(
@@ -124,6 +115,51 @@ def _send_webhook(config: NotificationConfig, alerts: list[Alert], now: datetime
     with urlopen(request, timeout=30) as response:
         if response.status >= 400:
             raise NotifyError(f"webhook returned HTTP {response.status}")
+
+
+def _send_hermes(config: NotificationConfig, alerts: list[Alert], now: datetime, timezone_name: str) -> None:
+    hermes_config = config.hermes
+    message = _render_message(alerts, now, timezone_name)
+    payload = {
+        "source": "chdbits-hnr-monitor",
+        "agent": hermes_config.agent_name,
+        "type": "hnr_stalled",
+        "severity": "warning",
+        "title": f"H&R 监控提醒：{len(alerts)} 个种子完成时间未变化",
+        "message": message,
+        "text": message,
+        "content": message,
+        "sent_at": now.isoformat(),
+        "timezone": timezone_name,
+        "count": len(alerts),
+        "alerts": _alert_payloads(alerts),
+    }
+    data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+    headers = {"Content-Type": "application/json; charset=utf-8"}
+    token = hermes_config.token_value
+    if token:
+        headers[hermes_config.token_header] = _token_header_value(hermes_config.token_prefix, token)
+    request = Request(
+        hermes_config.url_value,
+        data=data,
+        method="POST",
+        headers=headers,
+    )
+    with urlopen(request, timeout=30) as response:
+        body = response.read().decode("utf-8", errors="replace")
+        if response.status >= 400:
+            raise NotifyError(f"hermes returned HTTP {response.status}: {body}")
+        if body:
+            try:
+                result = json.loads(body)
+            except json.JSONDecodeError:
+                return
+            status = str(result.get("status", "ok")).lower()
+            ok = result.get("ok")
+            success = result.get("success")
+            if status in {"error", "failed", "fail"} or ok is False or success is False:
+                message = result.get("message") or result.get("error") or body
+                raise NotifyError(f"hermes returned failure: {message}")
 
 
 def _send_wechat(config: NotificationConfig, alerts: list[Alert], now: datetime, timezone_name: str) -> None:
@@ -150,6 +186,14 @@ def _send_wechat(config: NotificationConfig, alerts: list[Alert], now: datetime,
             if errcode != 0:
                 errmsg = result.get("errmsg", "")
                 raise NotifyError(f"wechat returned errcode {errcode}: {errmsg}")
+
+
+def _token_header_value(prefix: str, token: str) -> str:
+    if not prefix:
+        return token
+    if prefix.endswith((" ", "\t")):
+        return f"{prefix}{token}"
+    return f"{prefix} {token}"
 
 
 def _build_wecom_robot_payload(config: NotificationConfig, content: str) -> dict[str, object]:
@@ -237,6 +281,24 @@ def _build_onebot_payload(config: NotificationConfig, content: str) -> dict[str,
 def _onebot_id(value: str) -> int | str:
     stripped = value.strip()
     return int(stripped) if stripped.isdecimal() else stripped
+
+
+def _alert_payloads(alerts: list[Alert]) -> list[dict[str, object]]:
+    return [
+        {
+            "key": alert.key,
+            "name": alert.name,
+            "title": alert.name,
+            "detail_url": alert.detail_url,
+            "progress_value": alert.progress_value,
+            "completion_time": alert.progress_value,
+            "stalled_since": alert.stalled_since.isoformat(),
+            "stalled_hours": round(alert.stalled_hours, 2),
+            "last_seen_at": alert.last_seen_at.isoformat(),
+            "status": alert.status,
+        }
+        for alert in alerts
+    ]
 
 
 def _render_message(alerts: list[Alert], now: datetime, timezone_name: str) -> str:

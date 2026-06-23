@@ -6,6 +6,7 @@ import unittest
 from hnr_monitor.config import (
     ConsoleConfig,
     EmailConfig,
+    HermesConfig,
     NotificationConfig,
     QqConfig,
     WebhookConfig,
@@ -83,6 +84,7 @@ class NotifyTest(unittest.TestCase):
             console=ConsoleConfig(enabled=False),
             email=EmailConfig(enabled=False),
             webhook=WebhookConfig(enabled=False),
+            hermes=HermesConfig(enabled=False),
             wechat=WechatConfig(
                 enabled=True,
                 webhook_url="https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=test",
@@ -128,6 +130,7 @@ class NotifyTest(unittest.TestCase):
             console=ConsoleConfig(enabled=False),
             email=EmailConfig(enabled=False),
             webhook=WebhookConfig(enabled=False),
+            hermes=HermesConfig(enabled=False),
             wechat=WechatConfig(enabled=False),
             qq=QqConfig(
                 enabled=True,
@@ -156,6 +159,56 @@ class NotifyTest(unittest.TestCase):
         self.assertTrue(payload["auto_escape"])
         self.assertIn("标题: Title A", payload["message"])
         self.assertIn("当前完成时间: 0:44:17", payload["message"])
+
+    def test_hermes_payload_contains_text_and_structured_alerts(self) -> None:
+        now = datetime(2026, 5, 26, 8, 0, tzinfo=timezone.utc)
+        alerts = [
+            Alert(
+                key="123",
+                name="Title A",
+                detail_url="https://ptchdbits.co/details.php?id=123",
+                progress_value="0:44:17",
+                stalled_since=now,
+                stalled_hours=24.5,
+                last_seen_at=now,
+                status="",
+            )
+        ]
+        config = NotificationConfig(
+            console=ConsoleConfig(enabled=False),
+            email=EmailConfig(enabled=False),
+            webhook=WebhookConfig(enabled=False),
+            hermes=HermesConfig(
+                enabled=True,
+                url="http://127.0.0.1:8765/agent/inbox",
+                token="secret",
+                token_header="X-Hermes-Token",
+                token_prefix="",
+                agent_name="H&R Monitor",
+            ),
+            wechat=WechatConfig(enabled=False),
+            qq=QqConfig(enabled=False),
+        )
+        captured = []
+
+        def fake_urlopen(request, timeout):
+            captured.append((request, timeout))
+            return FakeResponse(b'{"ok":true}')
+
+        with patch("hnr_monitor.notify.urlopen", fake_urlopen):
+            send_alerts(config, alerts, now, "Asia/Shanghai")
+
+        self.assertEqual(len(captured), 1)
+        request, timeout = captured[0]
+        self.assertEqual(timeout, 30)
+        self.assertEqual(request.full_url, "http://127.0.0.1:8765/agent/inbox")
+        self.assertEqual(request.headers["X-hermes-token"], "secret")
+        payload = json.loads(request.data.decode("utf-8"))
+        self.assertEqual(payload["source"], "chdbits-hnr-monitor")
+        self.assertEqual(payload["agent"], "H&R Monitor")
+        self.assertIn("标题: Title A", payload["message"])
+        self.assertEqual(payload["alerts"][0]["title"], "Title A")
+        self.assertEqual(payload["alerts"][0]["completion_time"], "0:44:17")
 
 
 if __name__ == "__main__":
